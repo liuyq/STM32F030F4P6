@@ -9,3 +9,26 @@ http://www.st.com/content/ccc/resource/technical/document/programming_manual/fc/
 
 RM0360 Reference manual STM32F030x4/x6/x8/xC and STM32F070x6/xB advanced ARM-based 32-bit MCUs
 http://www.st.com/content/ccc/resource/technical/document/reference_manual/cf/10/a8/c4/29/fb/4c/42/DM00091010.pdf/files/DM00091010.pdf/jcr:content/translations/en.DM00091010.pdf
+
+------------------------------------------------------------------------------------------------------
+https://www.openimpulse.com/blog/products-page/product-category/stm32f030f4p6-mini-development-board/
+Overview
+    The STM32F030F4P6 boardis a high-speed embedded development board which offers very great performance at less power consumption.
+    When in running mode, maximum power consumption is 22 mA, and 175 uA.
+    This board features 5.5 V to 3.3 V regulator, RESET button, onboard LED for power indication, jumper BOOT option, output pins and mounted pinhead specifically for ISP connection or SWD.
+    This board also integrates micro USB power supply interface and ISP/SWD programming/debugging interface.
+    These features make it ideal for a wide range of applications which need a relatively high processing power and more communication capabilities.
+
+Features
+    Low power consumption (depending on the application)
+    Communication: one SPI, one USART, and one I2C
+    11-channel, 12-bit ADC
+    15 GPIO pins
+
+Specifications
+    Operating Voltage: 2.4 V to 3.6 V
+    Operating Frequency: 48 MHz
+    Timers: 1 advanced 4 general purpose
+    Flash memory: 16 kb
+    SRAM: 4 KB
+------------------------------------------------------------------------------------------------------
