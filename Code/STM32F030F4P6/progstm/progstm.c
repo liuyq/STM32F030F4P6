@@ -38,8 +38,7 @@ int detect_chip ( void )
     while(1)
     {
         rb=ser_copystring(rdata);
-        if(rb)
-        {
+        if(rb){
             if(rdata[0]==0x79)
             {
                 ser_dump(rb);
@@ -47,7 +46,9 @@ int detect_chip ( void )
             }
             printf("detect_chip error %u 0x%02X\n",rb,rdata[0]);
             return(1);
-        }
+        }/*else{
+            printf("detect_chip error: no return from ser_copystring, continue\n");
+        }*/
     }
     printf("chip found\n");
     return(0);
@@ -594,48 +595,53 @@ int main ( int argc, char *argv[] )
     unsigned int binlen;
     FILE *fp;
 
-    if(argc<3)
-    {
-        printf("progstm /dev/ttyXYZ filename.bin\n");
+    if ( argc<2 ) {
+        printf("progstm /dev/ttyXYZ [filename.bin]\n");
         return(1);
     }
 
-    fp=fopen(argv[2],"rb");
-    if(fp==NULL)
-    {
-        printf("Error opening file [%s]\n",argv[2]);
-        return(1);
-    }
-    memset(bindata,0xFF,sizeof(bindata));
-    binlen=fread(bindata,1,sizeof(bindata),fp);
-    fclose(fp);
-    printf("%u bytes read\n",binlen);
-    binlen+=3;
-    binlen>>=2;
-    if(ser_open(argv[1]))
-    {
+    if (ser_open(argv[1]) ) {
         printf("ser_open() failed\n");
         return(1);
     }
     printf("port opened\n");
-    if(detect_chip())
-    {
+    if(detect_chip()) {
         ser_close();
         return(1);
     }
 
     get_stm_info();
-    if(extended_erase_flash()) return(1);
-
-    for(ra=0;ra<binlen;ra++)
-    {
-        if(write_mem_32(0x08000000+(ra<<2),bindata[ra])) return(1);
+    if (argc == 2 ) {
+        ser_close();
+        return(0);
     }
 
-    ser_close();
-    return(0);
+    fp = fopen(argv[2],"rb");
+    if ( fp == NULL ) {
+        printf("Error opening file [%s]\n",argv[2]);
+        ser_close();
+        return(1);
+    } else {
+        memset(bindata,0xFF,sizeof(bindata));
+        binlen=fread(bindata,1,sizeof(bindata),fp);
+        fclose(fp);
+        printf("%u bytes read\n",binlen);
+        binlen+=3;
+        binlen>>=2;
+
+        if ( extended_erase_flash() ) {
+            ser_close();
+            return(1);
+        }
+
+        for(ra=0; ra<binlen; ra++ ) {
+            if(write_mem_32(0x08000000+(ra<<2), bindata[ra])){
+                ser_close();
+                return(1);
+            }
+        }
+    }
 }
 //-----------------------------------------------------------------------------
 // Copyright (C) David Welch, 2000-2015
 //-----------------------------------------------------------------------------
-

@@ -1,0 +1,146 @@
+related links:
+https://blog.xentoo.info/2015/12/31/ubuntu-14-04-and-usb-to-serial-ch341-chinese-device-from-ebay/
+https://askubuntu.com/questions/496549/error-you-must-put-some-source-uris-in-your-sources-list
+https://askubuntu.com/questions/797351/fatal-error-openssl-opensslv-h-no-such-file-or-directory-compiling-mitmproxy
+https://sourceforge.net/p/stm32flash/wiki/Hints/
+http://www.wch.cn/download/CH341SER_LINUX_ZIP.html
+
+1. run software-properties-gtk to enable the source
+
+2. download the source and prepare the compiling environment
+    sudo apt-get update
+    sudo apt-get source linux-source-4.4.0 linux-headers-$(uname -r)
+    sudo chown -R liu:liu linux-4.4.0/
+    cd linux-4.4.0/
+    git init .
+    git add .
+    git commit -s
+    git status
+    make oldconfig
+    make prepare
+    make scripts
+    sudo apt-get install libssl-dev
+    make scripts
+    cp -v /usr/src/linux-headers-$(uname -r)/Module.symvers .
+    cp /lib/modules/$(uname -r)/kernel/drivers/usb/serial/ch341.ko /lib/modules/$(uname -r)/kernel/drivers/usb/serial/ch341.ko.orig
+    sudo cp /lib/modules/$(uname -r)/kernel/drivers/usb/serial/ch341.ko /lib/modules/$(uname -r)/kernel/drivers/usb/serial/ch341.ko.orig
+
+3. patch the ch341.c file
+    cd drivers/usb/serial
+    cp -v ch341.c ch341.c.orig
+    #wget https://github.com/karlp/ch341-linux/raw/master/0001-usb-serial-ch341-Add-parity-support.patch
+13:24:56 liu: serial$ cat /tmp/ch341/diff.txt
+diff --git a/drivers/usb/serial/ch341.c b/drivers/usb/serial/ch341.c
+index 71133d9..7a3a29c 100644
+--- a/drivers/usb/serial/ch341.c
++++ b/drivers/usb/serial/ch341.c
+@@ -358,6 +358,7 @@ static void ch341_set_termios(struct tty_struct *tty,
+    struct ch341_private *priv = usb_get_serial_port_data(port);
+    unsigned baud_rate;
+    unsigned long flags;
++   unsigned int par_flags;
+
+    baud_rate = tty_get_baud_rate(tty);
+
+@@ -368,10 +369,34 @@ static void ch341_set_termios(struct tty_struct *tty,
+
+    /* Unimplemented:
+     * (cflag & CSIZE) : data bits [5, 8]
+-    * (cflag & PARENB) : parity {NONE, EVEN, ODD}
+     * (cflag & CSTOPB) : stop bits [1, 2]
+     */
+
++   /* CH340 doesn't appear to support variable stop bits or data bits */
++   if (C_PARENB(tty)) {
++       if (C_PARODD(tty)) {
++           if (tty->termios.c_cflag & CMSPAR) {
++               dev_dbg(&port->dev, "parity = mark\n");
++               par_flags = 0xeb;
++           } else {
++               dev_dbg(&port->dev, "parity = odd\n");
++               par_flags = 0xcb;
++           }
++       } else {
++           if (tty->termios.c_cflag & CMSPAR) {
++               dev_dbg(&port->dev, "parity = space\n");
++               par_flags = 0xfb;
++           } else {
++               dev_dbg(&port->dev, "parity = even\n");
++               par_flags = 0xdb;
++           }
++       }
++   } else {
++       dev_dbg(&port->dev, "parity = none\n");
++       par_flags = 0xc3;
++   }
++    ch341_control_out(port->serial->dev, 0x9a, 0x2518, par_flags);
++
+    spin_lock_irqsave(&priv->lock, flags);
+    if (C_BAUD(tty) == B0)
+        priv->line_control &= ~(CH341_BIT_DTR | CH341_BIT_RTS);
+13:25:32 liu: serial$
+
+4. compile and install the ch341 modle
+    make -C /lib/modules/$(uname -r)/build M=$(pwd) modules
+    sudo cp ch341.ko /lib/modules/$(uname -r)/kernel/drivers/usb/serial/ch341.ko
+    sudo rmmod ch341
+    sudo modprobe ch341
+
+5. Try again with stm32flash
+    cd /development/IOT/stm32flash-code/
+    12:13:28 liu: stm32flash-code$ sudo ./stm32flash /dev/ttyUSB0
+    stm32flash 0.5
+
+    http://stm32flash.sourceforge.net/
+
+    Interface serial_posix: 57600 8E1
+    Version      : 0x31
+    Option 1     : 0x00
+    Option 2     : 0x00
+    Device ID    : 0x0444 (STM32F03xx4/6)
+    - RAM        : Up to 4KiB  (2048b reserved by bootloader)
+    - Flash      : Up to 32KiB (size first sector: 4x1024)
+    - Option RAM : 16b
+    - System RAM : 3KiB
+
+    12:13:29 liu: stm32flash-code$
+
+    12:26:30 liu: STM32F030F4P6$ sudo /tmp/progstm /dev/ttyUSB0
+    port opened
+    detect_chip()
+    chip found
+    get()
+    79 0B
+    31 bootloader version
+    00 get
+    01 get version and read protection status
+    02 get ID
+    11 Read Memory
+    21 Go
+    31 Write Memory
+    44 Extended Erase
+    63 Write Protect
+    73 Write Unprotect
+    82 Readout Protect
+    92 Readout Unprotect
+    getverpstat()
+    0x31 version
+    0x00 read prot disables
+    0x00 read prot enables
+    getid()
+    79 01 04 44 79
+    12:26:32 liu: STM32F030F4P6$
+
+-------------------------------------------------------
+problem before patch
+12:57:11 liuyq: progstm$ sudo stm32flash /dev/ttyUSB0
+stm32flash 0.5
+
+http://stm32flash.sourceforge.net/
+
+Interface serial_posix: 57600 8E1
+Failed to read ACK byte
+Unexpected reply from device on command 0x01
+
+12:57:24 liuyq: progstm$
+-------------------------------------------------------
